@@ -1,0 +1,29 @@
+# Java / Maven
+backend/target/
+backend/hs_err_pid*.log
+backend/replay_pid*.log
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python
+ai/.venv/
+ai/venv/
+ai/__pycache__/
+ai/**/__pycache__/
+ai/*.pyc
+
+# Local environment and temporary files
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.bak
+*.swp
+
+# IDE files
+.idea/
+.vscode/
