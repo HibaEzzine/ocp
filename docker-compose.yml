@@ -1,0 +1,77 @@
+services:
+  # Base de données MySQL unifiée
+  db:
+    image: mysql:8.0
+    container_name: ocp_mysql_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: pdr_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ocp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  # Microservice IA (FastAPI / Scikit-Learn)
+  ai-service:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    container_name: ocp_ai_service
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ai_model:/app/model
+    networks:
+      - ocp-network
+
+  # Backend Spring Boot unifié
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: ocp_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/pdr_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      AI_SERVICE_URL: http://ai-service:8000
+    networks:
+      - ocp-network
+
+  # Frontend React (Vite / Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: ocp_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - ocp-network
+
+volumes:
+  mysql_data:
+  ai_model:
+
+networks:
+  ocp-network:
+    driver: bridge
