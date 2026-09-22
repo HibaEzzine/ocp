@@ -178,4 +178,5 @@ npm run dev
 
 Placez d’abord le fichier manuel dans `ai/dataset/consommation_historique.xlsx`, cliquez sur **Entraîner le modèle**, puis utilisez **Prédire le mois suivant**. Les consommations récentes utilisées par la prédiction proviennent de l’import Excel PDR existant. Les articles `ÉLEVÉ` et `CRITIQUE` sont les anomalies prioritaires.
 #   o c p  
+ #   o c p  
  
