@@ -180,4 +180,5 @@ Placez d’abord le fichier manuel dans `ai/dataset/consommation_historique.xlsx
 #   o c p  
  #   o c p  
  #   o c p  
+ #   o c p  
  
