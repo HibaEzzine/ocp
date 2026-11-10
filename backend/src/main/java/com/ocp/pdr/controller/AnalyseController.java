@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ocp.pdr.dto.response.AnalysisSummaryResponse;
 import com.ocp.pdr.dto.response.ApiSuccessResponse;
+import com.ocp.pdr.dto.response.DetectionAnomaliesIaResponse;
 import com.ocp.pdr.dto.response.PredictionIaResponse;
 import com.ocp.pdr.model.AnomalieConsommation;
 import com.ocp.pdr.model.ResultatApprovisionnement;
@@ -84,6 +85,18 @@ public class AnalyseController {
     @GetMapping("/anomalies")
     public ResponseEntity<List<AnomalieConsommation>> getAnomalies() {
         return ResponseEntity.ok(analyseConsommationService.obtenirToutesAnomalies());
+    }
+
+    @GetMapping("/consommations-inhabituelles")
+    public ResponseEntity<DetectionAnomaliesIaResponse> getConsommationsInhabituelles() {
+        log.info("Requête de détection automatique des consommations inhabituelles IA");
+        return ResponseEntity.ok(iaPredictionService.detecterConsommationsInhabituelles());
+    }
+
+    @PostMapping({"/consommations-inhabituelles/detecter", "/consommations-inhabituelles/calculer"})
+    public ResponseEntity<DetectionAnomaliesIaResponse> calculerConsommationsInhabituelles() {
+        log.info("Requête de recalcul des consommations inhabituelles IA");
+        return ResponseEntity.ok(iaPredictionService.detecterConsommationsInhabituelles());
     }
 
     @GetMapping("/predictions-ia")

@@ -1,0 +1,14 @@
+{
+  "datasetHash": "1c99972ad14d36d379b39c1fafff30b3c7491e11e0253912eefad5c747217782",
+  "trainedAt": 1790890535775.7236,
+  "evaluation": {
+    "modele": "Random Forest Regressor (50 arbres, max_depth=5)",
+    "mae": 0.29,
+    "rmse": 0.33,
+    "r2": 0.91,
+    "baselineMae": 2.0,
+    "baselineRmse": 2.0,
+    "nbSamplesTrained": 4,
+    "ameliorationPct": 85.5
+  }
+}

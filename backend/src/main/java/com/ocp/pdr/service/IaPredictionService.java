@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ocp.pdr.dto.response.AnomalieConsommationIaDto;
+import com.ocp.pdr.dto.response.DetectionAnomaliesIaResponse;
 import com.ocp.pdr.dto.response.PredictionIaResponse;
 import com.ocp.pdr.dto.response.PredictionIaResultDto;
 import com.ocp.pdr.model.ArticlePDR;
@@ -117,6 +119,153 @@ public class IaPredictionService {
                 .message("Analyse prédictive IA exécutée avec succès.")
                 .timestamp(System.currentTimeMillis())
                 .build();
+    }
+
+    public DetectionAnomaliesIaResponse detecterConsommationsInhabituelles() {
+        List<ArticlePDR> articles = articlePDRRepository.findAllForAnalysis();
+        if (articles == null || articles.isEmpty()) {
+            return DetectionAnomaliesIaResponse.builder()
+                    .success(true)
+                    .totalArticles(0)
+                    .nbAnomalies(0)
+                    .nbCritique(0)
+                    .nbInhabituelle(0)
+                    .nbNormal(0)
+                    .nbNonEvaluable(0)
+                    .results(Collections.emptyList())
+                    .message("Aucun article trouvé dans le référentiel.")
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+        }
+
+        Map<String, Object> requestPayload = construirePayload(articles, false);
+        List<AnomalieConsommationIaDto> results;
+
+        try {
+            JsonNode root = appelerServicePython(requestPayload, "/detect-anomalies");
+            JsonNode resultNodes = root.get("results");
+            if (resultNodes != null && resultNodes.isArray()) {
+                results = objectMapper.convertValue(resultNodes, new TypeReference<List<AnomalieConsommationIaDto>>() {});
+            } else {
+                results = Collections.emptyList();
+            }
+            log.info("Détection des consommations inhabituelles réussie via FastAPI ({} articles traités)", results.size());
+        } catch (Exception e) {
+            log.warn("Microservice Python IA non disponible pour /detect-anomalies : {}. Application du repli statistique Java.", e.getMessage());
+            results = executerDetectionAnomaliesLocale(articles);
+        }
+
+        int nbCritique = 0;
+        int nbInhabituelle = 0;
+        int nbNormal = 0;
+        int nbNonEvaluable = 0;
+
+        for (AnomalieConsommationIaDto item : results) {
+            String niv = item.getNiveau() != null ? item.getNiveau().toUpperCase() : "";
+            switch (niv) {
+                case "CRITIQUE" -> nbCritique++;
+                case "INHABITUELLE" -> nbInhabituelle++;
+                case "NORMAL" -> nbNormal++;
+                default -> nbNonEvaluable++;
+            }
+        }
+
+        int nbAnomalies = nbCritique + nbInhabituelle;
+
+        return DetectionAnomaliesIaResponse.builder()
+                .success(true)
+                .totalArticles(results.size())
+                .nbAnomalies(nbAnomalies)
+                .nbCritique(nbCritique)
+                .nbInhabituelle(nbInhabituelle)
+                .nbNormal(nbNormal)
+                .nbNonEvaluable(nbNonEvaluable)
+                .results(results)
+                .message("Détection automatique des consommations inhabituelles exécutée avec succès.")
+                .timestamp(System.currentTimeMillis())
+                .build();
+    }
+
+    public List<AnomalieConsommationIaDto> executerDetectionAnomaliesLocale(List<ArticlePDR> articles) {
+        List<AnomalieConsommationIaDto> results = new ArrayList<>();
+        for (ArticlePDR article : articles) {
+            String codeSAP = article.getCodeSAP() != null ? article.getCodeSAP() : "";
+            String description = article.getDescription() != null ? article.getDescription() : "";
+
+            Map<String, Double> monthlyMap = new TreeMap<>();
+            if (article.getConsommations() != null) {
+                for (Consommation c : article.getConsommations()) {
+                    if (c.getQuantiteConsommee() != null && c.getDateConsommation() != null) {
+                        YearMonth ym = YearMonth.from(c.getDateConsommation());
+                        double q = Math.abs(c.getQuantiteConsommee());
+                        monthlyMap.put(ym.toString(), monthlyMap.getOrDefault(ym.toString(), 0.0) + q);
+                    }
+                }
+            }
+
+            List<Double> values = new ArrayList<>(monthlyMap.values());
+            if (values.size() < 3) {
+                double consoRecente = values.isEmpty() ? 0.0 : values.get(values.size() - 1);
+                results.add(AnomalieConsommationIaDto.builder()
+                        .codeSAP(codeSAP)
+                        .description(description)
+                        .consommationRecente(Math.round(consoRecente * 100.0) / 100.0)
+                        .moyenneHistorique(0.0)
+                        .ecartType(0.0)
+                        .seuil(0.0)
+                        .augmentationPourcentage(0.0)
+                        .niveau("NON_EVALUABLE")
+                        .anomalie(false)
+                        .justification("Historique insuffisant pour l'évaluation statistique (minimum 3 mois requis).")
+                        .build());
+                continue;
+            }
+
+            double consoRecente = values.get(values.size() - 1);
+            double sum = 0.0;
+            for (double v : values) sum += v;
+            double moyenne = sum / values.size();
+
+            double varSum = 0.0;
+            for (double v : values) varSum += Math.pow(v - moyenne, 2);
+            double std = Math.sqrt(varSum / values.size());
+
+            double seuil = moyenne + 2.0 * std;
+            double seuilCritique = moyenne + 3.0 * std;
+            double augPct = moyenne > 0 ? ((consoRecente - moyenne) / moyenne) * 100.0 : 0.0;
+
+            String niveau;
+            boolean anomalie;
+            String justification;
+
+            if (consoRecente > seuilCritique) {
+                niveau = "CRITIQUE";
+                anomalie = true;
+                justification = String.format("La consommation récente (%.2f) dépasse sévèrement le seuil critique (%.2f).", consoRecente, seuilCritique);
+            } else if (consoRecente > seuil) {
+                niveau = "INHABITUELLE";
+                anomalie = true;
+                justification = "La consommation récente dépasse le seuil statistique calculé à partir de l'historique.";
+            } else {
+                niveau = "NORMAL";
+                anomalie = false;
+                justification = String.format("La consommation récente (%.2f) est conforme et inférieure ou égale au seuil statistique (%.2f).", consoRecente, seuil);
+            }
+
+            results.add(AnomalieConsommationIaDto.builder()
+                    .codeSAP(codeSAP)
+                    .description(description)
+                    .consommationRecente(Math.round(consoRecente * 100.0) / 100.0)
+                    .moyenneHistorique(Math.round(moyenne * 100.0) / 100.0)
+                    .ecartType(Math.round(std * 100.0) / 100.0)
+                    .seuil(Math.round(seuil * 100.0) / 100.0)
+                    .augmentationPourcentage(Math.round(augPct * 100.0) / 100.0)
+                    .niveau(niveau)
+                    .anomalie(anomalie)
+                    .justification(justification)
+                    .build());
+        }
+        return results;
     }
 
     public PredictionIaResponse entrainerModele() {

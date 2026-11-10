@@ -89,6 +89,32 @@ export interface ResultatAppro {
   dateAnalyse: string;
 }
 
+export interface AnomalieStatistiqueIa {
+  codeSAP: string;
+  description: string;
+  consommationRecente: number;
+  moyenneHistorique: number;
+  ecartType: number;
+  seuil: number;
+  augmentationPourcentage: number;
+  niveau: 'NORMAL' | 'INHABITUELLE' | 'CRITIQUE' | 'NON_EVALUABLE';
+  anomalie: boolean;
+  justification: string;
+}
+
+export interface DetectionAnomaliesIaResponse {
+  success: boolean;
+  totalArticles: number;
+  nbAnomalies: number;
+  nbCritique: number;
+  nbInhabituelle: number;
+  nbNormal: number;
+  nbNonEvaluable: number;
+  results: AnomalieStatistiqueIa[];
+  message?: string;
+  timestamp?: number;
+}
+
 export const analyseService = {
   getSummary: () => api.get<AnalysisSummary>('/analyse/summary'),
 
@@ -115,6 +141,12 @@ export const analyseService = {
   getHistoriqueArticle: (codeSAP: string) =>
     api.get<Array<{ mois: string; quantite: number }>>(`/analyse/ia/predictions/${codeSAP}/historique`),
 
+  getConsommationsInhabituelles: () =>
+    api.get<DetectionAnomaliesIaResponse>('/analyse/consommations-inhabituelles'),
+
+  detecterConsommationsInhabituelles: () =>
+    api.post<DetectionAnomaliesIaResponse>('/analyse/consommations-inhabituelles/detecter'),
+
   getResultatsAppro: (params?: { page?: number; size?: number; mode?: string; search?: string }) =>
     api.get<ResultatAppro[] | { content: ResultatAppro[]; totalElements: number; totalPages: number }>('/analyse/resultats', { params }),
 
@@ -122,3 +154,4 @@ export const analyseService = {
 };
 
 export default analyseService;
+

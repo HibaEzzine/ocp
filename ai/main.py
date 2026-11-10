@@ -1,7 +1,13 @@
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pdr_schemas import PredictionRequest, PredictionResponse, RiskLevel
+from pdr_schemas import (
+    PredictionRequest,
+    PredictionResponse,
+    RiskLevel,
+    AnomalyDetectRequest,
+    AnomalyDetectResponse,
+)
 from predictor import (
     build_training_dataset,
     get_model_status,
@@ -10,6 +16,7 @@ from predictor import (
     train_global_random_forest,
     update_model_metadata,
 )
+from anomaly_detector import detect_anomalies_for_articles
 
 app = FastAPI(
     title="Service IA Prédiction Consommation PDR OCP (Random Forest)",
@@ -110,6 +117,20 @@ def predict_consumptions(request: PredictionRequest):
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur interne dans le modèle prédictif IA: {str(e)}")
+
+@app.post("/detect-anomalies", response_model=AnomalyDetectResponse)
+def detect_anomalies(request: AnomalyDetectRequest):
+    """
+    Détection statistique automatique des consommations inhabituelles et critiques
+    selon la méthode Moyenne + écart-type.
+    """
+    try:
+        articles = request.articles or []
+        results = detect_anomalies_for_articles(articles)
+        return AnomalyDetectResponse(results=results)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la détection statistique d'anomalies: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -14,12 +14,56 @@ class ConsommationPoint(BaseModel):
     quantite: Optional[float] = None
     numeroOT: Optional[str] = None
 
+    @classmethod
+    def model_validate(cls, obj: Any, *args, **kwargs):
+        if isinstance(obj, dict):
+            if "quantite" not in obj or obj["quantite"] is None:
+                if "quantiteConsommee" in obj:
+                    obj = {**obj, "quantite": obj["quantiteConsommee"]}
+                elif "qte" in obj:
+                    obj = {**obj, "quantite": obj["qte"]}
+        return super().model_validate(obj, *args, **kwargs)
+
 class ArticleData(BaseModel):
     codeSAP: str
     description: Optional[str] = ""
     quantiteInstallee: Optional[float] = 0.0
     categorie: Optional[str] = ""
     historique: Optional[List[ConsommationPoint]] = []
+
+class AnomalyLevel(str, Enum):
+    NORMAL = "NORMAL"
+    INHABITUELLE = "INHABITUELLE"
+    CRITIQUE = "CRITIQUE"
+    NON_EVALUABLE = "NON_EVALUABLE"
+
+class AnomalyArticleInput(BaseModel):
+    model_config = {"extra": "ignore"}
+    codeSAP: Optional[str] = ""
+    description: Optional[str] = ""
+    quantiteInstallee: Optional[float] = 0.0
+    categorie: Optional[str] = ""
+    historique: Optional[List[ConsommationPoint]] = []
+
+class AnomalyDetectRequest(BaseModel):
+    model_config = {"extra": "ignore"}
+    articles: List[AnomalyArticleInput] = []
+    currentMonth: Optional[str] = None
+
+class AnomalyResult(BaseModel):
+    codeSAP: str
+    description: str
+    consommationRecente: float
+    moyenneHistorique: float
+    ecartType: float
+    seuil: float
+    augmentationPourcentage: float
+    niveau: AnomalyLevel
+    anomalie: bool
+    justification: str
+
+class AnomalyDetectResponse(BaseModel):
+    results: List[AnomalyResult]
 
 class PredictionRequest(BaseModel):
     articles: List[ArticleData]
