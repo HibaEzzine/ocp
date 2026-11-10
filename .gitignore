@@ -27,3 +27,90 @@ ai/*.pyc
 # IDE files
 .idea/
 .vscode/
+
+# -------------------------------------------------
+#  Général
+# -------------------------------------------------
+# Système Windows
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs / artefacts temporaires
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# -------------------------------------------------
+#  Backend (Spring Boot / Maven)
+# -------------------------------------------------
+/target/                # artefacts Maven
+!target/*.jar           # on garde le JAR uniquement si vous le versionnez volontairement (normalement non)
+*.class
+.idea/                  # IntelliJ IDEA (si vous l’utilisez)
+/*.iml
+/.classpath
+/.project
+/.settings/
+
+# Secrets / configuration locale
+src/main/resources/application-dev.yml
+src/main/resources/application-local.yml
+src/main/resources/*.properties
+
+# -------------------------------------------------
+#  Frontend (Node / Vite / React)
+# -------------------------------------------------
+node_modules/
+dist/
+.vite/
+*.env
+.env.local
+.env.development
+.env.production
+
+# npm / pnpm lock files (conservez‑les, ils ne sont pas ignorés)
+# pnpm-lock.yaml   <-- NE PAS ajouter ici
+# package-lock.json <-- NE PAS ajouter ici
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+
+# -------------------------------------------------
+#  IA (Python / FastAPI)
+# -------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+*.dylib
+*.dll
+
+# Environnement virtuel (si vous en créez un à la racine)
+venv/
+.env/
+# Vous pouvez garder le dossier `model/` s’il contient le modèle entraîné
+# mais s’il doit rester persistant, ne l’ignorez pas.
+# model/        <-- NE PAS ajouter ici
+
+# -------------------------------------------------
+#  Docker / CI
+# -------------------------------------------------
+docker-compose.override.yml   # fichier local de surcharge
+.dockerignore                 # si vous avez un .dockerignore global
+
+# -------------------------------------------------
+#  IDEs / éditeurs
+# -------------------------------------------------
+.vscode/
+*.code-workspace
+.idea/
+*.sublime-project
+*.sublime-workspace
